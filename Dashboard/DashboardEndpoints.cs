@@ -178,37 +178,39 @@ public static class DashboardEndpoints
   <title>DNBot Dashboard</title>
   <style>
     :root {
-      color-scheme: light;
+      color-scheme: dark;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
-      --bg: #f4f7fb;
-      --panel: #ffffff;
-      --panel-strong: #111827;
-      --line: #d9e1ee;
-      --line-strong: #b7c2d4;
-      --text: #152033;
-      --muted: #637083;
-      --blue: #2563eb;
-      --blue-soft: #e7efff;
-      --green: #12805c;
-      --red: #dc2626;
-      --amber: #a16207;
-      --shadow: 0 12px 30px rgb(25 35 55 / 10%);
+      --bg: #090d14;
+      --panel: #121823;
+      --panel-soft: #171f2c;
+      --panel-strong: #0d1320;
+      --line: #263244;
+      --line-strong: #3a465a;
+      --text: #e8eef7;
+      --muted: #99a6ba;
+      --blue: #4f8cff;
+      --blue-soft: #172b4f;
+      --green: #34d399;
+      --red: #ef4444;
+      --amber: #fbbf24;
+      --shadow: 0 18px 42px rgb(0 0 0 / 28%);
     }
 
     * { box-sizing: border-box; }
+    * { scrollbar-color: #334155 #0d1420; }
     body { margin: 0; background: var(--bg); color: var(--text); }
     button, input, select, textarea { font: inherit; }
     main { min-height: 100vh; display: grid; grid-template-columns: 260px minmax(0, 1fr); }
-    aside { background: #101827; color: #f8fafc; padding: 24px 18px; }
+    aside { background: #0c121d; color: #f8fafc; padding: 24px 18px; border-right: 1px solid var(--line); }
     .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
-    .mark { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 8px; background: #2dd4bf; color: #0f172a; font-weight: 900; }
+    .mark { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 8px; background: #5eead4; color: #07111f; font-weight: 900; }
     .brand h1 { margin: 0; font-size: 22px; line-height: 1; }
-    .brand p { margin: 3px 0 0; color: #aab7ca; font-size: 13px; }
+    .brand p { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
     nav { display: grid; gap: 8px; }
-    nav button { width: 100%; border: 0; border-radius: 7px; padding: 11px 12px; text-align: left; color: #dce7f7; background: transparent; cursor: pointer; }
-    nav button.active, nav button:hover { background: #1d2a44; color: #ffffff; }
-    .status-card { margin-top: 24px; padding: 14px; border: 1px solid #293750; border-radius: 8px; background: #152033; }
-    .status-card strong { display: block; font-size: 13px; color: #aab7ca; margin-bottom: 8px; }
+    nav button { width: 100%; border: 0; border-radius: 7px; padding: 11px 12px; text-align: left; color: #cbd7eb; background: transparent; cursor: pointer; }
+    nav button.active, nav button:hover { background: #162235; color: #ffffff; }
+    .status-card { margin-top: 24px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-strong); }
+    .status-card strong { display: block; font-size: 13px; color: #c8d3e6; margin-bottom: 8px; }
     .status-line { display: flex; align-items: center; gap: 8px; font-size: 14px; }
     .dot { width: 9px; height: 9px; border-radius: 999px; background: #f59e0b; }
     .dot.connected { background: #22c55e; }
@@ -222,35 +224,39 @@ public static class DashboardEndpoints
     section.full { grid-column: 1 / -1; }
     section.third { grid-column: span 4; }
     h3 { margin: 0 0 14px; font-size: 17px; }
-    label { display: block; margin: 12px 0 6px; color: #3f4d63; font-size: 13px; font-weight: 800; }
-    input, select, textarea { width: 100%; border: 1px solid var(--line-strong); border-radius: 7px; padding: 10px 12px; background: #fff; color: var(--text); }
+    label { display: block; margin: 12px 0 6px; color: #c5d0e3; font-size: 13px; font-weight: 800; }
+    input, select, textarea { width: 100%; border: 1px solid var(--line-strong); border-radius: 7px; padding: 10px 12px; background: #0d1420; color: var(--text); }
+    ::placeholder { color: #738299; opacity: 1; }
+    input:focus, select:focus, textarea:focus { outline: 2px solid rgb(79 140 255 / 35%); border-color: var(--blue); }
     textarea { min-height: 116px; resize: vertical; }
     button { border: 0; border-radius: 7px; padding: 10px 14px; background: var(--blue); color: white; font-weight: 800; cursor: pointer; }
-    button.secondary { background: #e8edf5; color: var(--text); }
+    button.secondary { background: #263244; color: var(--text); }
     button.danger { background: var(--red); }
+    button:hover { filter: brightness(1.08); }
     button:disabled { cursor: not-allowed; opacity: .55; }
     .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
     .muted { color: var(--muted); font-size: 14px; }
-    .metric { padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: #f9fbfe; }
+    .metric { padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-soft); }
     .metric.third { grid-column: span 4; }
     .metric span { display: block; color: var(--muted); font-size: 13px; font-weight: 800; }
     .metric strong { display: block; margin-top: 5px; font-size: 24px; }
-    .toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #f9fbfe; margin-top: 10px; }
+    .toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-soft); margin-top: 10px; }
     .toggle input { width: 44px; height: 24px; accent-color: var(--blue); }
     .roles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; max-height: 280px; overflow: auto; padding-right: 4px; }
-    .role { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 7px; padding: 9px 10px; background: #fbfdff; }
+    .role { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 7px; padding: 9px 10px; background: var(--panel-soft); }
     .role input { width: auto; }
     .swatch { width: 10px; height: 10px; border-radius: 999px; background: #8793a5; flex: 0 0 auto; }
     table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    th, td { text-align: left; padding: 11px 8px; border-bottom: 1px solid #e7ecf4; vertical-align: top; }
-    th { color: #46556b; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
-    .pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 5px 10px; background: var(--blue-soft); color: #1d4ed8; font-weight: 800; font-size: 12px; }
-    .notice { border-left: 4px solid var(--amber); background: #fff8e6; padding: 11px 12px; border-radius: 6px; color: #5f4305; }
-    .empty { padding: 22px; border: 1px dashed var(--line-strong); border-radius: 8px; color: var(--muted); background: #fbfdff; }
-    code { background: #eef3fb; border: 1px solid #d9e1ee; border-radius: 5px; padding: 2px 5px; }
+    th, td { text-align: left; padding: 11px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    tbody tr:hover { background: rgb(255 255 255 / 3%); }
+    th { color: #b7c4d8; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    .pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 5px 10px; background: var(--blue-soft); color: #b9d1ff; font-weight: 800; font-size: 12px; }
+    .notice { border-left: 4px solid var(--amber); background: #2d2511; padding: 11px 12px; border-radius: 6px; color: #ffe6a3; }
+    .empty { padding: 22px; border: 1px dashed var(--line-strong); border-radius: 8px; color: var(--muted); background: var(--panel-soft); }
+    code { background: #0d1420; border: 1px solid var(--line); border-radius: 5px; padding: 2px 5px; color: #d7e5ff; }
     .view { display: none; }
     .view.active { display: block; }
-    .toast { position: fixed; right: 22px; bottom: 22px; min-width: 240px; border-radius: 8px; padding: 12px 14px; background: #111827; color: white; box-shadow: var(--shadow); opacity: 0; transform: translateY(8px); pointer-events: none; transition: .18s ease; }
+    .toast { position: fixed; right: 22px; bottom: 22px; min-width: 240px; border-radius: 8px; padding: 12px 14px; background: #e8eef7; color: #0b1020; box-shadow: var(--shadow); opacity: 0; transform: translateY(8px); pointer-events: none; transition: .18s ease; }
     .toast.show { opacity: 1; transform: translateY(0); }
 
     @media (max-width: 900px) {
