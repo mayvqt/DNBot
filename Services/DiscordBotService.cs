@@ -7,7 +7,6 @@ using DNBot.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace DNBot.Services;
 
@@ -16,13 +15,17 @@ public sealed class DiscordBotService(
     InteractionService interactions,
     CommandService commands,
     IServiceProvider services,
-    IOptions<DiscordBotOptions> options,
+    BotSettingsStore settings,
     ILogger<DiscordBotService> logger) : IHostedService
 {
-    private readonly DiscordBotOptions _options = options.Value;
-
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(settings.Current.Token))
+        {
+            logger.LogWarning("Discord token is missing. Open the dashboard, save a token, then restart the app.");
+            return;
+        }
+
         client.Log += LogDiscordAsync;
         commands.Log += LogDiscordAsync;
         interactions.Log += LogDiscordAsync;
@@ -35,7 +38,7 @@ public sealed class DiscordBotService(
         await interactions.AddModulesAsync(Assembly.GetExecutingAssembly(), services);
 
         logger.LogInformation("Starting Discord client");
-        await client.LoginAsync(TokenType.Bot, _options.Token);
+        await client.LoginAsync(TokenType.Bot, settings.Current.Token);
         await client.StartAsync();
     }
 
@@ -53,7 +56,7 @@ public sealed class DiscordBotService(
 
     private async Task RegisterInteractionsAsync()
     {
-        if (_options.DevelopmentGuildId is { } guildId)
+        if (settings.Current.DevelopmentGuildId is { } guildId)
         {
             await interactions.RegisterCommandsToGuildAsync(guildId, deleteMissing: true);
             logger.LogInformation("Registered slash commands to development guild {GuildId}", guildId);
@@ -88,7 +91,7 @@ public sealed class DiscordBotService(
 
         var position = 0;
         var mentioned = message.HasMentionPrefix(client.CurrentUser, ref position);
-        var prefixed = message.HasStringPrefix(_options.Prefix, ref position);
+        var prefixed = message.HasStringPrefix(settings.Current.Prefix, ref position);
 
         if (!mentioned && !prefixed)
         {

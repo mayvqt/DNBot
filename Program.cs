@@ -3,15 +3,20 @@ using Discord.Commands;
 using Discord.Interactions;
 using Discord.WebSocket;
 using DNBot.Configuration;
+using DNBot.Dashboard;
+using DNBot.Features.Levels;
 using DNBot.Features.Reminders;
+using DNBot.Features.Tags;
 using DNBot.Services;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Text.Json.Serialization;
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration
     .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
@@ -25,10 +30,14 @@ builder.Logging.AddSimpleConsole(options =>
     options.TimestampFormat = "HH:mm:ss ";
 });
 
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.NumberHandling = JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString;
+});
+
 builder.Services
     .AddOptions<DiscordBotOptions>()
     .Bind(builder.Configuration.GetSection(DiscordBotOptions.SectionName))
-    .Validate(options => !string.IsNullOrWhiteSpace(options.Token), "Discord:Token is required.")
     .Validate(options => options.Prefix.Length is > 0 and <= 8, "Discord:Prefix must be 1-8 characters.")
     .ValidateOnStart();
 
@@ -39,6 +48,7 @@ builder.Services.AddSingleton(sp =>
     return new DiscordSocketClient(new DiscordSocketConfig
     {
         GatewayIntents = GatewayIntents.Guilds
+            | GatewayIntents.GuildMembers
             | GatewayIntents.GuildMessages
             | GatewayIntents.DirectMessages
             | GatewayIntents.MessageContent,
@@ -69,8 +79,18 @@ builder.Services.AddSingleton(_ => new CommandService(new CommandServiceConfig
 }));
 
 builder.Services.AddSingleton<ReminderStore>();
+builder.Services.AddSingleton<TagStore>();
+builder.Services.AddSingleton<LevelStore>();
+builder.Services.AddSingleton<BotSettingsStore>();
 builder.Services.AddHostedService<DiscordBotService>();
+builder.Services.AddHostedService<AutoRoleService>();
+builder.Services.AddHostedService<MessageRewardService>();
 builder.Services.AddHostedService<ReminderDeliveryService>();
 builder.Services.AddHostedService<StatusRotationService>();
 
-await builder.Build().RunAsync();
+var app = builder.Build();
+
+app.Urls.Add(builder.Configuration["Dashboard:Url"] ?? "http://localhost:5080");
+app.MapDashboard();
+
+await app.RunAsync();

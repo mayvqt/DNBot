@@ -14,10 +14,5 @@ public sealed class DiscordBotOptions
 
     public LogSeverity DiscordNetLogLevel { get; init; } = LogSeverity.Info;
 
-    public IReadOnlyList<string> StatusMessages { get; init; } =
-    [
-        "/help",
-        "mentions and slash commands",
-        "ready to expand"
-    ];
+    public string[] StatusMessages { get; init; } = [];
 }

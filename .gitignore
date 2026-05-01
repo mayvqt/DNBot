@@ -3,3 +3,4 @@ obj/
 .dotnet/
 .env
 appsettings.Development.json
+data/

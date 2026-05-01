@@ -3,36 +3,39 @@ using Discord.WebSocket;
 using DNBot.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace DNBot.Services;
 
 public sealed class StatusRotationService(
     DiscordSocketClient client,
-    IOptions<DiscordBotOptions> options,
+    BotSettingsStore settings,
     ILogger<StatusRotationService> logger) : BackgroundService
 {
-    private readonly IReadOnlyList<string> _messages = options.Value.StatusMessages
-        .Where(message => !string.IsNullOrWhiteSpace(message))
-        .ToArray();
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (_messages.Count == 0)
+        try
         {
-            return;
+            await WaitUntilReadyAsync(stoppingToken);
+
+            var index = 0;
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                var messages = settings.Current.StatusMessages;
+                if (messages.Count == 0)
+                {
+                    await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                    continue;
+                }
+
+                var message = messages[index++ % messages.Count];
+                await client.SetActivityAsync(new Game(message));
+                logger.LogDebug("Set status to {Status}", message);
+
+                await Task.Delay(TimeSpan.FromMinutes(10), stoppingToken);
+            }
         }
-
-        await WaitUntilReadyAsync(stoppingToken);
-
-        var index = 0;
-        while (!stoppingToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            var message = _messages[index++ % _messages.Count];
-            await client.SetActivityAsync(new Game(message));
-            logger.LogDebug("Set status to {Status}", message);
-
-            await Task.Delay(TimeSpan.FromMinutes(10), stoppingToken);
         }
     }
 

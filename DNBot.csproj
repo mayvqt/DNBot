@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -9,10 +9,6 @@
 
   <ItemGroup>
     <PackageReference Include="Discord.Net" Version="3.19.1" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.7" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.7" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.7" />
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.7" />
   </ItemGroup>
 
   <ItemGroup>

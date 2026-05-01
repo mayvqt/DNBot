@@ -12,14 +12,20 @@ public sealed class ReminderDeliveryService(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            foreach (var reminder in store.TakeDue(DateTimeOffset.UtcNow))
+            while (!stoppingToken.IsCancellationRequested)
             {
-                await SendReminderAsync(reminder);
-            }
+                foreach (var reminder in store.TakeDue(DateTimeOffset.UtcNow))
+                {
+                    await SendReminderAsync(reminder);
+                }
 
-            await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken);
+            }
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
         }
     }
 
