@@ -95,7 +95,7 @@ public sealed class BotSettingsStore
         lock (_gate)
         {
             return _settings.GuildSettings.FirstOrDefault(settings => settings.GuildId == guildId)
-                ?? new GuildRuntimeSettings(guildId, PrefixOverride: null);
+                ?? CreateDefaultGuildSettings(guildId);
         }
     }
 
@@ -105,7 +105,11 @@ public sealed class BotSettingsStore
             ? null
             : guildSettings.PrefixOverride.Trim()[..Math.Min(guildSettings.PrefixOverride.Trim().Length, 8)];
 
-        var cleaned = guildSettings with { PrefixOverride = prefix };
+        var cleaned = guildSettings with
+        {
+            PrefixOverride = prefix,
+            Welcome = CleanWelcome(guildSettings.Welcome)
+        };
 
         lock (_gate)
         {
@@ -148,7 +152,12 @@ public sealed class BotSettingsStore
                 {
                     StatusMessages = loaded.StatusMessages ?? [],
                     AutoRoles = loaded.AutoRoles ?? [],
-                    GuildSettings = loaded.GuildSettings ?? []
+                    GuildSettings = (loaded.GuildSettings ?? [])
+                        .Select(settings => settings with
+                        {
+                            Welcome = CleanWelcome(settings.Welcome)
+                        })
+                        .ToArray()
                 };
             }
         }
@@ -167,5 +176,34 @@ public sealed class BotSettingsStore
     private void Save()
     {
         JsonFileStore.Write(_filePath, _settings);
+    }
+
+    private static GuildRuntimeSettings CreateDefaultGuildSettings(ulong guildId)
+    {
+        return new GuildRuntimeSettings(
+            guildId,
+            PrefixOverride: null,
+            new WelcomeSettings(
+                Enabled: false,
+                ChannelId: null,
+                Message: "Welcome {user} to {server}!"));
+    }
+
+    private static WelcomeSettings CleanWelcome(WelcomeSettings? welcome)
+    {
+        if (welcome is null)
+        {
+            return new WelcomeSettings(false, null, "Welcome {user} to {server}!");
+        }
+
+        var message = string.IsNullOrWhiteSpace(welcome.Message)
+            ? "Welcome {user} to {server}!"
+            : welcome.Message.Trim();
+
+        return welcome with
+        {
+            ChannelId = welcome.ChannelId is 0 ? null : welcome.ChannelId,
+            Message = message[..Math.Min(message.Length, 500)]
+        };
     }
 }

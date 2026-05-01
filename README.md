@@ -12,6 +12,7 @@ A .NET 10 Discord bot template built on Discord.Net, ASP.NET Core, dependency in
 - XP and levels: `/levels rank`, `/levels leaderboard`
 - Prefix commands: `!ping`, `!say`
 - Autorole for new members, configured from the dashboard
+- Per-server prefix overrides and welcome messages
 - In-memory reminder queue with a hosted delivery service
 - Rotating bot status messages
 - Structured console logging
@@ -39,7 +40,7 @@ http://localhost:5080/dashboard
 
 Save your token, prefix, development guild, status rotation, and autorole settings there. The dashboard writes to `data/settings.json`, which is the bot's main runtime config. Restart after saving a new token or changing the development guild used for slash command registration.
 
-The server selector in the dashboard scopes server-specific pages. Selecting a server loads that server's prefix override, autorole rules, assignable roles, level leaderboard, and tags. Global settings stay under Setup.
+The server selector in the dashboard scopes server-specific pages. Selecting a server loads that server's prefix override, welcome message settings, autorole rules, assignable roles, level leaderboard, and tags. Global settings stay under Setup.
 
 You can still manually edit environment variables for automation or deployment. Env/appsettings values seed `data/settings.json` only when that file does not exist yet:
 

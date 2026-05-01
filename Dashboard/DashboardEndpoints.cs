@@ -66,6 +66,20 @@ public static class DashboardEndpoints
                 .ToArray());
         });
 
+        app.MapGet("/api/guilds/{guildId}/channels", (ulong guildId, DiscordSocketClient client) =>
+        {
+            var guild = client.GetGuild(guildId);
+            if (guild is null)
+            {
+                return Results.NotFound();
+            }
+
+            return Results.Ok(guild.TextChannels
+                .OrderBy(channel => channel.Position)
+                .Select(channel => new ChannelSummary(channel.Id, channel.Name, channel.Position))
+                .ToArray());
+        });
+
         app.MapGet("/api/guilds/{guildId}/settings", (ulong guildId, BotSettingsStore settings) =>
             settings.GetGuildSettings(guildId));
 
@@ -78,7 +92,8 @@ public static class DashboardEndpoints
 
             return Results.Ok(settings.UpsertGuildSettings(new GuildRuntimeSettings(
                 guildId,
-                request.PrefixOverride)));
+                request.PrefixOverride,
+                request.Welcome ?? new WelcomeSettings(false, null, "Welcome {user} to {server}!"))));
         });
 
         app.MapGet("/api/guilds/{guildId}/autorole", (ulong guildId, BotSettingsStore settings) =>
@@ -136,7 +151,9 @@ public static class DashboardEndpoints
 
     private sealed record RoleSummary(ulong Id, string Name, int Position, bool IsManaged);
 
-    private sealed record GuildSettingsRequest(string? PrefixOverride);
+    private sealed record ChannelSummary(ulong Id, string Name, int Position);
+
+    private sealed record GuildSettingsRequest(string? PrefixOverride, WelcomeSettings? Welcome);
 
     private sealed record DashboardSettingsResponse(
         bool HasToken,
@@ -356,6 +373,28 @@ public static class DashboardEndpoints
             <p class="muted">Selecting a server loads server-specific state: prefix override, autorole rules and roles, XP leaderboard, and tags.</p>
             <p class="notice">Global settings still live in Setup. Server settings only affect the selected Discord server.</p>
           </section>
+          <section>
+            <h3>Welcome Messages</h3>
+            <div class="toggle">
+              <div><strong>Enable welcome</strong><div class="muted">Send a message when someone joins this server.</div></div>
+              <input id="welcomeEnabled" type="checkbox">
+            </div>
+            <label for="welcomeChannel">Welcome Channel</label>
+            <select id="welcomeChannel"></select>
+            <label for="welcomeMessage">Welcome Message</label>
+            <textarea id="welcomeMessage" maxlength="500" placeholder="Welcome {user} to {server}!"></textarea>
+          </section>
+          <section>
+            <h3>Welcome Variables</h3>
+            <table>
+              <tbody>
+                <tr><td><code>{user}</code></td><td>Mentions the new member.</td></tr>
+                <tr><td><code>{username}</code></td><td>Plain username.</td></tr>
+                <tr><td><code>{server}</code></td><td>Server name.</td></tr>
+                <tr><td><code>{memberCount}</code></td><td>Current member count.</td></tr>
+              </tbody>
+            </table>
+          </section>
         </div>
       </div>
 
@@ -416,7 +455,7 @@ public static class DashboardEndpoints
   <div class="toast" id="toast"></div>
 
   <script>
-    const state = { guilds: [], selectedGuild: null, roles: [], autorole: null, guildSettings: null, globalPrefix: '!' };
+    const state = { guilds: [], selectedGuild: null, roles: [], channels: [], autorole: null, guildSettings: null, globalPrefix: '!' };
 
     const $ = id => document.getElementById(id);
     const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -507,19 +546,42 @@ public static class DashboardEndpoints
 
     async function loadGuildSettings() {
       const guild = selectedGuildId();
-      state.guildSettings = await getJson(`/api/guilds/${guild}/settings`);
+      const [settings] = await Promise.all([
+        getJson(`/api/guilds/${guild}/settings`),
+        loadChannels()
+      ]);
+      state.guildSettings = settings;
       $('serverPrefix').value = state.guildSettings.prefixOverride ?? '';
       $('effectivePrefix').textContent = `Effective prefix: ${state.guildSettings.prefixOverride || state.globalPrefix}`;
+      $('welcomeEnabled').checked = state.guildSettings.welcome.enabled;
+      $('welcomeChannel').value = state.guildSettings.welcome.channelId ?? '';
+      $('welcomeMessage').value = state.guildSettings.welcome.message;
       renderSelectedServerSummary();
     }
 
     async function saveGuildSettings() {
       const guild = selectedGuildId();
       state.guildSettings = await sendJson(`/api/guilds/${guild}/settings`, 'PUT', {
-        prefixOverride: $('serverPrefix').value || null
+        prefixOverride: $('serverPrefix').value || null,
+        welcome: {
+          enabled: $('welcomeEnabled').checked,
+          channelId: $('welcomeChannel').value || null,
+          message: $('welcomeMessage').value
+        }
       });
       await loadGuildSettings();
       toast('Server settings saved');
+    }
+
+    async function loadChannels() {
+      const guild = selectedGuildId();
+      state.channels = await getJson(`/api/guilds/${guild}/channels`);
+      renderChannels();
+    }
+
+    function renderChannels() {
+      $('welcomeChannel').innerHTML = '<option value="">Select channel...</option>' +
+        state.channels.map(channel => `<option value="${channel.id}">#${esc(channel.name)}</option>`).join('');
     }
 
     async function loadRoles() {
@@ -553,6 +615,7 @@ public static class DashboardEndpoints
     function renderSelectedServerSummary() {
       const guild = state.guilds.find(item => String(item.id) === String(state.selectedGuild));
       const effectivePrefix = state.guildSettings?.prefixOverride || state.globalPrefix;
+      const welcomeState = state.guildSettings?.welcome?.enabled ? 'On' : 'Off';
       $('serverContext').textContent = guild
         ? `Managing ${guild.name}. Server-specific tools now use this server.`
         : 'Select a server to manage server-specific settings.';
@@ -562,6 +625,7 @@ public static class DashboardEndpoints
             <div class="metric third"><span>Name</span><strong>${esc(guild.name)}</strong></div>
             <div class="metric third"><span>Members</span><strong>${guild.memberCount}</strong></div>
             <div class="metric third"><span>Prefix</span><strong>${esc(effectivePrefix)}</strong></div>
+            <div class="metric third"><span>Welcome</span><strong>${welcomeState}</strong></div>
           </div>`
         : 'Connect the bot and select a server to see server-specific controls.';
     }

@@ -84,6 +84,7 @@ builder.Services.AddSingleton<LevelStore>();
 builder.Services.AddSingleton<BotSettingsStore>();
 builder.Services.AddHostedService<DiscordBotService>();
 builder.Services.AddHostedService<AutoRoleService>();
+builder.Services.AddHostedService<WelcomeService>();
 builder.Services.AddHostedService<MessageRewardService>();
 builder.Services.AddHostedService<ReminderDeliveryService>();
 builder.Services.AddHostedService<StatusRotationService>();

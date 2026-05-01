@@ -16,4 +16,10 @@ public sealed record AutoRoleSettings(
 
 public sealed record GuildRuntimeSettings(
     ulong GuildId,
-    string? PrefixOverride);
+    string? PrefixOverride,
+    WelcomeSettings Welcome);
+
+public sealed record WelcomeSettings(
+    bool Enabled,
+    ulong? ChannelId,
+    string Message);
