@@ -1,16 +1,11 @@
 using System.Collections.Concurrent;
-using System.Text.Json;
+using DNBot.Configuration;
 using Microsoft.Extensions.Hosting;
 
 namespace DNBot.Features.Levels;
 
 public sealed class LevelStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        WriteIndented = true
-    };
-
     private readonly ConcurrentDictionary<(ulong GuildId, ulong UserId), LevelProfile> _profiles = [];
     private readonly ConcurrentDictionary<(ulong GuildId, ulong UserId), DateTimeOffset> _cooldowns = [];
     private readonly object _saveGate = new();
@@ -98,7 +93,7 @@ public sealed class LevelStore
             return;
         }
 
-        var profiles = JsonSerializer.Deserialize<IReadOnlyList<LevelProfile>>(File.ReadAllText(_filePath), JsonOptions) ?? [];
+        var profiles = JsonFileStore.Read<IReadOnlyList<LevelProfile>>(_filePath) ?? [];
         foreach (var profile in profiles)
         {
             _profiles[(profile.GuildId, profile.UserId)] = profile;
@@ -114,7 +109,7 @@ public sealed class LevelStore
                 .ThenByDescending(profile => profile.Xp)
                 .ToArray();
 
-            File.WriteAllText(_filePath, JsonSerializer.Serialize(profiles, JsonOptions));
+            JsonFileStore.Write(_filePath, profiles);
         }
     }
 }

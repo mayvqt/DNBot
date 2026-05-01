@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
@@ -12,11 +11,6 @@ public sealed class BotSettingsStore
         "mention me for prefix commands",
         "ready to expand"
     ];
-
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        WriteIndented = true
-    };
 
     private readonly object _gate = new();
     private readonly string _filePath;
@@ -96,19 +90,65 @@ public sealed class BotSettingsStore
         }
     }
 
+    public GuildRuntimeSettings GetGuildSettings(ulong guildId)
+    {
+        lock (_gate)
+        {
+            return _settings.GuildSettings.FirstOrDefault(settings => settings.GuildId == guildId)
+                ?? new GuildRuntimeSettings(guildId, PrefixOverride: null);
+        }
+    }
+
+    public GuildRuntimeSettings UpsertGuildSettings(GuildRuntimeSettings guildSettings)
+    {
+        var prefix = string.IsNullOrWhiteSpace(guildSettings.PrefixOverride)
+            ? null
+            : guildSettings.PrefixOverride.Trim()[..Math.Min(guildSettings.PrefixOverride.Trim().Length, 8)];
+
+        var cleaned = guildSettings with { PrefixOverride = prefix };
+
+        lock (_gate)
+        {
+            var guilds = _settings.GuildSettings
+                .Where(settings => settings.GuildId != cleaned.GuildId)
+                .Append(cleaned)
+                .OrderBy(settings => settings.GuildId)
+                .ToArray();
+
+            _settings = _settings with { GuildSettings = guilds };
+            Save();
+            return cleaned;
+        }
+    }
+
+    public string GetPrefix(ulong? guildId)
+    {
+        lock (_gate)
+        {
+            if (guildId is not { } id)
+            {
+                return _settings.Prefix;
+            }
+
+            return _settings.GuildSettings.FirstOrDefault(settings => settings.GuildId == id)?.PrefixOverride
+                ?? _settings.Prefix;
+        }
+    }
+
     private BotRuntimeSettings LoadOrCreate(DiscordBotOptions options)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
 
         if (File.Exists(_filePath))
         {
-            var loaded = JsonSerializer.Deserialize<BotRuntimeSettings>(File.ReadAllText(_filePath), JsonOptions);
+            var loaded = JsonFileStore.Read<BotRuntimeSettings>(_filePath);
             if (loaded is not null)
             {
                 return loaded with
                 {
                     StatusMessages = loaded.StatusMessages ?? [],
-                    AutoRoles = loaded.AutoRoles ?? []
+                    AutoRoles = loaded.AutoRoles ?? [],
+                    GuildSettings = loaded.GuildSettings ?? []
                 };
             }
         }
@@ -118,13 +158,14 @@ public sealed class BotSettingsStore
             options.Prefix,
             options.DevelopmentGuildId,
             options.StatusMessages.Length == 0 ? DefaultStatusMessages : options.StatusMessages,
+            [],
             []);
-        File.WriteAllText(_filePath, JsonSerializer.Serialize(settings, JsonOptions));
+        JsonFileStore.Write(_filePath, settings);
         return settings;
     }
 
     private void Save()
     {
-        File.WriteAllText(_filePath, JsonSerializer.Serialize(_settings, JsonOptions));
+        JsonFileStore.Write(_filePath, _settings);
     }
 }

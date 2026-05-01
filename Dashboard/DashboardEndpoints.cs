@@ -38,7 +38,12 @@ public static class DashboardEndpoints
 
         app.MapPut("/api/settings", (BotSettingsStore settings, DashboardSettingsRequest request) =>
         {
-            var current = settings.Update(request.Token, request.Prefix, request.DevelopmentGuildId, request.StatusMessages);
+            if (string.IsNullOrWhiteSpace(request.Prefix) || request.Prefix.Length > 8)
+            {
+                return Results.BadRequest("Prefix must be 1-8 characters.");
+            }
+
+            var current = settings.Update(request.Token, request.Prefix, request.DevelopmentGuildId, request.StatusMessages ?? []);
             return Results.Ok(new DashboardSettingsResponse(
                 !string.IsNullOrWhiteSpace(current.Token),
                 current.Prefix,
@@ -61,15 +66,38 @@ public static class DashboardEndpoints
                 .ToArray());
         });
 
+        app.MapGet("/api/guilds/{guildId}/settings", (ulong guildId, BotSettingsStore settings) =>
+            settings.GetGuildSettings(guildId));
+
+        app.MapPut("/api/guilds/{guildId}/settings", (ulong guildId, BotSettingsStore settings, GuildSettingsRequest request) =>
+        {
+            if (!string.IsNullOrWhiteSpace(request.PrefixOverride) && request.PrefixOverride.Length > 8)
+            {
+                return Results.BadRequest("Server prefix must be 1-8 characters.");
+            }
+
+            return Results.Ok(settings.UpsertGuildSettings(new GuildRuntimeSettings(
+                guildId,
+                request.PrefixOverride)));
+        });
+
         app.MapGet("/api/guilds/{guildId}/autorole", (ulong guildId, BotSettingsStore settings) =>
             settings.GetAutoRole(guildId));
 
         app.MapPut("/api/guilds/{guildId}/autorole", (ulong guildId, BotSettingsStore settings, AutoRoleRequest request) =>
-            Results.Ok(settings.UpsertAutoRole(new AutoRoleSettings(
+        {
+            var roleIds = request.RoleIds ?? [];
+            if (roleIds.Count > 20)
+            {
+                return Results.BadRequest("Autorole supports up to 20 roles.");
+            }
+
+            return Results.Ok(settings.UpsertAutoRole(new AutoRoleSettings(
                 guildId,
                 request.Enabled,
                 request.IgnoreBots,
-                request.RoleIds))));
+                roleIds)));
+        });
 
         app.MapGet("/api/levels/{guildId}", (ulong guildId, LevelStore levels) =>
             levels.GetLeaderboard(guildId, 25));
@@ -108,6 +136,8 @@ public static class DashboardEndpoints
 
     private sealed record RoleSummary(ulong Id, string Name, int Position, bool IsManaged);
 
+    private sealed record GuildSettingsRequest(string? PrefixOverride);
+
     private sealed record DashboardSettingsResponse(
         bool HasToken,
         string Prefix,
@@ -118,9 +148,9 @@ public static class DashboardEndpoints
         string? Token,
         string Prefix,
         ulong? DevelopmentGuildId,
-        IReadOnlyList<string> StatusMessages);
+        IReadOnlyList<string>? StatusMessages);
 
-    private sealed record AutoRoleRequest(bool Enabled, bool IgnoreBots, IReadOnlyList<ulong> RoleIds);
+    private sealed record AutoRoleRequest(bool Enabled, bool IgnoreBots, IReadOnlyList<ulong>? RoleIds);
 
     private const string DashboardHtml = """
 <!doctype html>
@@ -185,6 +215,7 @@ public static class DashboardEndpoints
     .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
     .muted { color: var(--muted); font-size: 14px; }
     .metric { padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: #f9fbfe; }
+    .metric.third { grid-column: span 4; }
     .metric span { display: block; color: var(--muted); font-size: 13px; font-weight: 800; }
     .metric strong { display: block; margin-top: 5px; font-size: 24px; }
     .toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #f9fbfe; margin-top: 10px; }
@@ -198,6 +229,8 @@ public static class DashboardEndpoints
     th { color: #46556b; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
     .pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 5px 10px; background: var(--blue-soft); color: #1d4ed8; font-weight: 800; font-size: 12px; }
     .notice { border-left: 4px solid var(--amber); background: #fff8e6; padding: 11px 12px; border-radius: 6px; color: #5f4305; }
+    .empty { padding: 22px; border: 1px dashed var(--line-strong); border-radius: 8px; color: var(--muted); background: #fbfdff; }
+    code { background: #eef3fb; border: 1px solid #d9e1ee; border-radius: 5px; padding: 2px 5px; }
     .view { display: none; }
     .view.active { display: block; }
     .toast { position: fixed; right: 22px; bottom: 22px; min-width: 240px; border-radius: 8px; padding: 12px 14px; background: #111827; color: white; box-shadow: var(--shadow); opacity: 0; transform: translateY(8px); pointer-events: none; transition: .18s ease; }
@@ -226,6 +259,7 @@ public static class DashboardEndpoints
       <nav>
         <button class="active" data-view="overview">Overview</button>
         <button data-view="setup">Setup</button>
+        <button data-view="server">Server</button>
         <button data-view="autorole">Autorole</button>
         <button data-view="levels">Levels</button>
         <button data-view="tags">Tags</button>
@@ -242,6 +276,7 @@ public static class DashboardEndpoints
         <div>
           <h2 id="pageTitle">Overview</h2>
           <p>The dashboard is the primary configuration surface. Env vars are optional for deployments.</p>
+          <p class="muted" id="serverContext">Select a server to manage server-specific settings.</p>
         </div>
         <div class="guild-picker">
           <label for="guildSelect">Active Server</label>
@@ -256,7 +291,11 @@ public static class DashboardEndpoints
           <section class="third metric"><span>Latency</span><strong id="metricLatency">0ms</strong></section>
           <section class="full">
             <h3>Quick Start</h3>
-            <p class="notice">Use Setup to save the token, prefix, development guild, and statuses. Use Autorole to pick join roles for the selected server.</p>
+            <p class="notice">Use Setup for global bot settings. The server selector scopes Server, Autorole, Levels, and Tags to one Discord server.</p>
+          </section>
+          <section class="full">
+            <h3>Selected Server</h3>
+            <div id="selectedServerSummary" class="empty">Connect the bot and select a server to see server-specific controls.</div>
           </section>
         </div>
       </div>
@@ -273,8 +312,8 @@ public static class DashboardEndpoints
             <label for="devGuild">Development Guild</label>
             <select id="devGuild"></select>
             <div class="actions">
-              <button onclick="saveSettings()">Save Settings</button>
-              <button class="secondary" onclick="loadSettings()">Reload</button>
+              <button onclick="tryAction(saveSettings)">Save Settings</button>
+              <button class="secondary" onclick="tryAction(loadSettings)">Reload</button>
             </div>
             <p class="notice">These settings are saved to <strong>data/settings.json</strong>. Existing dashboard settings win at runtime.</p>
           </section>
@@ -300,6 +339,26 @@ public static class DashboardEndpoints
         </div>
       </div>
 
+      <div id="server" class="view">
+        <div class="grid">
+          <section>
+            <h3>Server Settings</h3>
+            <label for="serverPrefix">Server Prefix Override</label>
+            <input id="serverPrefix" maxlength="8" placeholder="Leave blank to use global prefix">
+            <p class="muted" id="effectivePrefix">Effective prefix: !</p>
+            <div class="actions">
+              <button onclick="tryAction(saveGuildSettings)">Save Server Settings</button>
+              <button class="secondary" onclick="tryAction(loadGuildSettings)">Reload</button>
+            </div>
+          </section>
+          <section>
+            <h3>What The Server Selector Does</h3>
+            <p class="muted">Selecting a server loads server-specific state: prefix override, autorole rules and roles, XP leaderboard, and tags.</p>
+            <p class="notice">Global settings still live in Setup. Server settings only affect the selected Discord server.</p>
+          </section>
+        </div>
+      </div>
+
       <div id="autorole" class="view">
         <div class="grid">
           <section>
@@ -313,8 +372,8 @@ public static class DashboardEndpoints
               <input id="autoroleIgnoreBots" type="checkbox">
             </div>
             <div class="actions">
-              <button onclick="saveAutoRole()">Save Autorole</button>
-              <button class="secondary" onclick="loadAutoRole()">Reload</button>
+              <button onclick="tryAction(saveAutoRole)">Save Autorole</button>
+              <button class="secondary" onclick="tryAction(loadAutoRole)">Reload</button>
             </div>
           </section>
           <section>
@@ -329,8 +388,8 @@ public static class DashboardEndpoints
         <div class="grid">
           <section class="full">
             <div class="actions">
-              <button onclick="loadLevels()">Refresh Levels</button>
-              <button class="danger" onclick="resetGuildLevels()">Reset Server Levels</button>
+              <button onclick="tryAction(loadLevels)">Refresh Levels</button>
+              <button class="danger" onclick="tryAction(resetGuildLevels)">Reset Server Levels</button>
             </div>
             <table>
               <thead><tr><th>User ID</th><th>Level</th><th>XP</th><th>Next</th><th></th></tr></thead>
@@ -343,7 +402,7 @@ public static class DashboardEndpoints
       <div id="tags" class="view">
         <div class="grid">
           <section class="full">
-            <div class="actions"><button onclick="loadTags()">Refresh Tags</button></div>
+            <div class="actions"><button onclick="tryAction(loadTags)">Refresh Tags</button></div>
             <table>
               <thead><tr><th>Name</th><th>Owner</th><th>Content</th><th></th></tr></thead>
               <tbody id="tagRows"></tbody>
@@ -357,7 +416,7 @@ public static class DashboardEndpoints
   <div class="toast" id="toast"></div>
 
   <script>
-    const state = { guilds: [], selectedGuild: null, roles: [], autorole: null };
+    const state = { guilds: [], selectedGuild: null, roles: [], autorole: null, guildSettings: null, globalPrefix: '!' };
 
     const $ = id => document.getElementById(id);
     const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -380,9 +439,17 @@ public static class DashboardEndpoints
       setTimeout(() => $('toast').classList.remove('show'), 2200);
     }
 
+    async function tryAction(action) {
+      try {
+        await action();
+      } catch (error) {
+        toast(error.message || 'Something went wrong');
+      }
+    }
+
     function selectedGuildId() {
       const value = $('guildSelect').value;
-      if (!value) throw new Error('Select a server first.');
+      if (!value) throw new Error('Select a connected server first.');
       return value;
     }
 
@@ -396,6 +463,7 @@ public static class DashboardEndpoints
       $('metricGuilds').textContent = status.guilds;
       $('metricLatency').textContent = `${status.latencyMs}ms`;
       renderGuildSelects();
+      renderSelectedServerSummary();
     }
 
     function renderGuildSelects() {
@@ -403,19 +471,27 @@ public static class DashboardEndpoints
       const guildSelect = $('guildSelect');
       const devGuild = $('devGuild');
       const current = guildSelect.value || state.selectedGuild;
+      const currentDevGuild = devGuild.value;
       guildSelect.innerHTML = options;
       devGuild.innerHTML = '<option value="">Global commands</option>' + state.guilds.map(g => `<option value="${g.id}">${esc(g.name)}</option>`).join('');
       if (current) guildSelect.value = current;
+      if (currentDevGuild) devGuild.value = currentDevGuild;
       state.selectedGuild = guildSelect.value || null;
+      if (state.guilds.length === 0) {
+        guildSelect.innerHTML = '<option value="">Connect the bot to Discord first</option>';
+      }
+      renderSelectedServerSummary();
     }
 
     async function loadSettings() {
       const settings = await getJson('/api/settings');
+      state.globalPrefix = settings.prefix;
       $('token').value = '';
       $('tokenState').textContent = settings.hasToken ? 'A token is saved locally.' : 'No token saved yet.';
       $('prefix').value = settings.prefix;
       $('devGuild').value = settings.developmentGuildId ?? '';
       $('statuses').value = settings.statusMessages.join('\n');
+      renderSelectedServerSummary();
     }
 
     async function saveSettings() {
@@ -427,6 +503,23 @@ public static class DashboardEndpoints
       });
       await loadSettings();
       toast('Settings saved');
+    }
+
+    async function loadGuildSettings() {
+      const guild = selectedGuildId();
+      state.guildSettings = await getJson(`/api/guilds/${guild}/settings`);
+      $('serverPrefix').value = state.guildSettings.prefixOverride ?? '';
+      $('effectivePrefix').textContent = `Effective prefix: ${state.guildSettings.prefixOverride || state.globalPrefix}`;
+      renderSelectedServerSummary();
+    }
+
+    async function saveGuildSettings() {
+      const guild = selectedGuildId();
+      state.guildSettings = await sendJson(`/api/guilds/${guild}/settings`, 'PUT', {
+        prefixOverride: $('serverPrefix').value || null
+      });
+      await loadGuildSettings();
+      toast('Server settings saved');
     }
 
     async function loadRoles() {
@@ -454,7 +547,23 @@ public static class DashboardEndpoints
           <input type="checkbox" value="${role.id}" ${selected.has(String(role.id)) ? 'checked' : ''} ${role.isManaged ? 'disabled' : ''}>
           <span class="swatch"></span>
           <span>${esc(role.name)}</span>
-        </label>`).join('') || '<p class="muted">No roles loaded. Select a connected server.</p>';
+        </label>`).join('') || '<div class="empty">No roles loaded. Select a connected server.</div>';
+    }
+
+    function renderSelectedServerSummary() {
+      const guild = state.guilds.find(item => String(item.id) === String(state.selectedGuild));
+      const effectivePrefix = state.guildSettings?.prefixOverride || state.globalPrefix;
+      $('serverContext').textContent = guild
+        ? `Managing ${guild.name}. Server-specific tools now use this server.`
+        : 'Select a server to manage server-specific settings.';
+
+      $('selectedServerSummary').innerHTML = guild
+        ? `<div class="grid">
+            <div class="metric third"><span>Name</span><strong>${esc(guild.name)}</strong></div>
+            <div class="metric third"><span>Members</span><strong>${guild.memberCount}</strong></div>
+            <div class="metric third"><span>Prefix</span><strong>${esc(effectivePrefix)}</strong></div>
+          </div>`
+        : 'Connect the bot and select a server to see server-specific controls.';
     }
 
     async function saveAutoRole() {
@@ -465,7 +574,6 @@ public static class DashboardEndpoints
         ignoreBots: $('autoroleIgnoreBots').checked,
         roleIds
       });
-      await loadAutoRole();
       toast('Autorole saved');
     }
 
@@ -474,17 +582,19 @@ public static class DashboardEndpoints
       $('levelRows').innerHTML = rows.map(row => `
         <tr>
           <td>${row.userId}</td><td><span class="pill">${row.level}</span></td><td>${row.xp}</td><td>${row.xpForNextLevel}</td>
-          <td><button class="danger" onclick="resetUserLevel('${row.guildId}', '${row.userId}')">Reset</button></td>
-        </tr>`).join('') || '<tr><td colspan="5" class="muted">No level data yet.</td></tr>';
+          <td><button class="danger" onclick="tryAction(() => resetUserLevel('${row.guildId}', '${row.userId}'))">Reset</button></td>
+        </tr>`).join('') || '<tr><td colspan="5"><div class="empty">No level data yet.</div></td></tr>';
     }
 
     async function resetUserLevel(guild, user) {
+      if (!confirm('Reset this user level?')) return;
       await fetch(`/api/levels/${guild}/${user}`, { method: 'DELETE' });
       await loadLevels();
       toast('User level reset');
     }
 
     async function resetGuildLevels() {
+      if (!confirm('Reset all levels for this server?')) return;
       await fetch(`/api/levels/${selectedGuildId()}`, { method: 'DELETE' });
       await loadLevels();
       toast('Server levels reset');
@@ -495,11 +605,12 @@ public static class DashboardEndpoints
       $('tagRows').innerHTML = rows.map(row => `
         <tr>
           <td><span class="pill">${esc(row.name)}</span></td><td>${row.ownerId}</td><td>${esc(row.content)}</td>
-          <td><button class="danger" onclick="deleteTag('${row.guildId}', '${encodeURIComponent(row.name)}')">Delete</button></td>
-        </tr>`).join('') || '<tr><td colspan="4" class="muted">No tags yet.</td></tr>';
+          <td><button class="danger" onclick="tryAction(() => deleteTag('${row.guildId}', '${encodeURIComponent(row.name)}'))">Delete</button></td>
+        </tr>`).join('') || '<tr><td colspan="4"><div class="empty">No tags yet.</div></td></tr>';
     }
 
     async function deleteTag(guild, name) {
+      if (!confirm('Delete this tag?')) return;
       await fetch(`/api/tags/${guild}/${name}`, { method: 'DELETE' });
       await loadTags();
       toast('Tag deleted');
@@ -518,8 +629,9 @@ public static class DashboardEndpoints
     $('guildSelect').addEventListener('change', async () => {
       state.selectedGuild = $('guildSelect').value || null;
       if (!state.selectedGuild) return;
+      state.guildSettings = null;
       try {
-        await Promise.all([loadAutoRole(), loadLevels(), loadTags()]);
+        await Promise.all([loadGuildSettings(), loadAutoRole(), loadLevels(), loadTags()]);
       } catch (error) {
         toast('Could not load server data');
       }

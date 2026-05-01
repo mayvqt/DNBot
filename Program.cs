@@ -14,7 +14,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,7 +31,8 @@ builder.Logging.AddSimpleConsole(options =>
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
-    options.SerializerOptions.NumberHandling = JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString;
+    options.SerializerOptions.Converters.Add(new SnowflakeJsonConverter());
+    options.SerializerOptions.Converters.Add(new NullableSnowflakeJsonConverter());
 });
 
 builder.Services

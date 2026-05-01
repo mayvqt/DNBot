@@ -18,6 +18,8 @@ public sealed class DiscordBotService(
     BotSettingsStore settings,
     ILogger<DiscordBotService> logger) : IHostedService
 {
+    private bool _started;
+
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(settings.Current.Token))
@@ -40,10 +42,16 @@ public sealed class DiscordBotService(
         logger.LogInformation("Starting Discord client");
         await client.LoginAsync(TokenType.Bot, settings.Current.Token);
         await client.StartAsync();
+        _started = true;
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
+        if (!_started)
+        {
+            return;
+        }
+
         logger.LogInformation("Stopping Discord client");
 
         client.Ready -= RegisterInteractionsAsync;
@@ -90,8 +98,10 @@ public sealed class DiscordBotService(
         }
 
         var position = 0;
+        var guildId = message.Channel is SocketGuildChannel guildChannel ? guildChannel.Guild.Id : (ulong?)null;
+        var prefix = settings.GetPrefix(guildId);
         var mentioned = message.HasMentionPrefix(client.CurrentUser, ref position);
-        var prefixed = message.HasStringPrefix(settings.Current.Prefix, ref position);
+        var prefixed = message.HasStringPrefix(prefix, ref position);
 
         if (!mentioned && !prefixed)
         {

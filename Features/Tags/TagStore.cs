@@ -1,16 +1,11 @@
 using System.Collections.Concurrent;
-using System.Text.Json;
+using DNBot.Configuration;
 using Microsoft.Extensions.Hosting;
 
 namespace DNBot.Features.Tags;
 
 public sealed class TagStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        WriteIndented = true
-    };
-
     private readonly ConcurrentDictionary<(ulong GuildId, string Name), Tag> _tags = [];
     private readonly object _saveGate = new();
     private readonly string _filePath;
@@ -69,7 +64,7 @@ public sealed class TagStore
             return;
         }
 
-        var tags = JsonSerializer.Deserialize<IReadOnlyList<Tag>>(File.ReadAllText(_filePath), JsonOptions) ?? [];
+        var tags = JsonFileStore.Read<IReadOnlyList<Tag>>(_filePath) ?? [];
         foreach (var tag in tags)
         {
             _tags[(tag.GuildId, Normalize(tag.Name))] = tag;
@@ -85,7 +80,7 @@ public sealed class TagStore
                 .ThenBy(tag => tag.Name)
                 .ToArray();
 
-            File.WriteAllText(_filePath, JsonSerializer.Serialize(tags, JsonOptions));
+            JsonFileStore.Write(_filePath, tags);
         }
     }
 }

@@ -4,3 +4,4 @@ obj/
 .env
 appsettings.Development.json
 data/
+*.corrupt-*
