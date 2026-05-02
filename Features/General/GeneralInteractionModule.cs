@@ -22,9 +22,9 @@ public sealed class GeneralInteractionModule(ReminderStore reminders) : Interact
         var embed = new EmbedBuilder()
             .WithTitle(guild.Name)
             .WithThumbnailUrl(guild.IconUrl)
-            .AddField("Members", guild.MemberCount, inline: true)
-            .AddField("Channels", guild.Channels.Count, inline: true)
-            .AddField("Created", TimestampTag.FromDateTimeOffset(guild.CreatedAt, TimestampTagStyles.LongDate), inline: true)
+            .AddField("Members", guild.MemberCount, true)
+            .AddField("Channels", guild.Channels.Count, true)
+            .AddField("Created", TimestampTag.FromDateTimeOffset(guild.CreatedAt, TimestampTagStyles.LongDate), true)
             .WithColor(Color.Blue)
             .Build();
 
@@ -49,8 +49,10 @@ public sealed class GeneralInteractionModule(ReminderStore reminders) : Interact
 
     [SlashCommand("remind", "Schedule a reminder in this channel.")]
     public async Task RemindAsync(
-        [Summary(description: "Delay in minutes.")] int minutes,
-        [Summary(description: "What should I remind you about?")] string text)
+        [Summary(description: "Delay in minutes.")]
+        int minutes,
+        [Summary(description: "What should I remind you about?")]
+        string text)
     {
         if (minutes is < 1 or > 10080)
         {
@@ -58,7 +60,8 @@ public sealed class GeneralInteractionModule(ReminderStore reminders) : Interact
             return;
         }
 
-        var reminder = reminders.Add(Context.Channel.Id, Context.User.Id, DateTimeOffset.UtcNow.AddMinutes(minutes), text);
+        var reminder = reminders.Add(Context.Channel.Id, Context.User.Id, DateTimeOffset.UtcNow.AddMinutes(minutes),
+            text);
 
         await RespondAsync(
             $"Reminder #{reminder.Id} set for {TimestampTag.FromDateTimeOffset(reminder.DueAt, TimestampTagStyles.Relative)}.",

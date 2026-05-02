@@ -4,9 +4,6 @@ using Discord.Commands;
 using Discord.Interactions;
 using Discord.WebSocket;
 using DNBot.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 namespace DNBot.Services;
 
@@ -47,10 +44,7 @@ public sealed class DiscordBotService(
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        if (!_started)
-        {
-            return;
-        }
+        if (!_started) return;
 
         logger.LogInformation("Stopping Discord client");
 
@@ -66,12 +60,12 @@ public sealed class DiscordBotService(
     {
         if (settings.Current.DevelopmentGuildId is { } guildId)
         {
-            await interactions.RegisterCommandsToGuildAsync(guildId, deleteMissing: true);
+            await interactions.RegisterCommandsToGuildAsync(guildId, true);
             logger.LogInformation("Registered slash commands to development guild {GuildId}", guildId);
             return;
         }
 
-        await interactions.RegisterCommandsGloballyAsync(deleteMissing: true);
+        await interactions.RegisterCommandsGloballyAsync(true);
         logger.LogInformation("Registered slash commands globally; Discord may take up to an hour to show changes");
     }
 
@@ -82,20 +76,15 @@ public sealed class DiscordBotService(
         var result = await interactions.ExecuteCommandAsync(context, scope.ServiceProvider);
 
         if (!result.IsSuccess)
-        {
             logger.LogWarning("Interaction {InteractionId} failed: {Error} {Reason}",
                 interaction.Id,
                 result.Error,
                 result.ErrorReason);
-        }
     }
 
     private async Task HandleMessageAsync(SocketMessage socketMessage)
     {
-        if (socketMessage is not SocketUserMessage message || message.Author.IsBot)
-        {
-            return;
-        }
+        if (socketMessage is not SocketUserMessage message || message.Author.IsBot) return;
 
         var position = 0;
         var guildId = message.Channel is SocketGuildChannel guildChannel ? guildChannel.Guild.Id : (ulong?)null;
@@ -103,10 +92,7 @@ public sealed class DiscordBotService(
         var mentioned = message.HasMentionPrefix(client.CurrentUser, ref position);
         var prefixed = message.HasStringPrefix(prefix, ref position);
 
-        if (!mentioned && !prefixed)
-        {
-            return;
-        }
+        if (!mentioned && !prefixed) return;
 
         using var scope = services.CreateScope();
         var context = new SocketCommandContext(client, message);

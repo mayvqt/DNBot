@@ -1,8 +1,6 @@
 using Discord;
 using Discord.WebSocket;
 using DNBot.Configuration;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 namespace DNBot.Services;
 
@@ -26,10 +24,7 @@ public sealed class WelcomeService(
     private async Task SendWelcomeAsync(SocketGuildUser user)
     {
         var welcome = settings.GetGuildSettings(user.Guild.Id).Welcome;
-        if (!welcome.Enabled || welcome.ChannelId is not { } channelId)
-        {
-            return;
-        }
+        if (!welcome.Enabled || welcome.ChannelId is not { } channelId) return;
 
         if (client.GetChannel(channelId) is not IMessageChannel channel)
         {

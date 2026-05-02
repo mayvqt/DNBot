@@ -1,15 +1,14 @@
 using System.Collections.Concurrent;
 using DNBot.Configuration;
-using Microsoft.Extensions.Hosting;
 
 namespace DNBot.Features.Levels;
 
 public sealed class LevelStore
 {
-    private readonly ConcurrentDictionary<(ulong GuildId, ulong UserId), LevelProfile> _profiles = [];
     private readonly ConcurrentDictionary<(ulong GuildId, ulong UserId), DateTimeOffset> _cooldowns = [];
-    private readonly object _saveGate = new();
     private readonly string _filePath;
+    private readonly ConcurrentDictionary<(ulong GuildId, ulong UserId), LevelProfile> _profiles = [];
+    private readonly object _saveGate = new();
 
     public LevelStore(IHostEnvironment environment)
     {
@@ -21,9 +20,7 @@ public sealed class LevelStore
     {
         var key = (guildId, userId);
         if (_cooldowns.TryGetValue(key, out var lastRewarded) && now - lastRewarded < TimeSpan.FromSeconds(45))
-        {
             return Get(guildId, userId);
-        }
 
         _cooldowns[key] = now;
         var xp = Random.Shared.Next(15, 26);
@@ -77,10 +74,7 @@ public sealed class LevelStore
     private static LevelProfile CreateProfile(ulong guildId, ulong userId, int xp)
     {
         var level = 0;
-        while (xp >= XpRequiredForLevel(level + 1))
-        {
-            level++;
-        }
+        while (xp >= XpRequiredForLevel(level + 1)) level++;
 
         return new LevelProfile(guildId, userId, xp, level);
     }
@@ -88,16 +82,10 @@ public sealed class LevelStore
     private void Load()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
-        if (!File.Exists(_filePath))
-        {
-            return;
-        }
+        if (!File.Exists(_filePath)) return;
 
         var profiles = JsonFileStore.Read<IReadOnlyList<LevelProfile>>(_filePath) ?? [];
-        foreach (var profile in profiles)
-        {
-            _profiles[(profile.GuildId, profile.UserId)] = profile;
-        }
+        foreach (var profile in profiles) _profiles[(profile.GuildId, profile.UserId)] = profile;
     }
 
     private void Save()

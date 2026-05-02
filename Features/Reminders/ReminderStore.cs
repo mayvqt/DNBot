@@ -22,10 +22,7 @@ public sealed class ReminderStore
             .OrderBy(reminder => reminder.DueAt)
             .ToArray();
 
-        foreach (var reminder in due)
-        {
-            _reminders.TryRemove(reminder.Id, out _);
-        }
+        foreach (var reminder in due) _reminders.TryRemove(reminder.Id, out _);
 
         return due;
     }

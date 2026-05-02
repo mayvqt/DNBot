@@ -25,10 +25,7 @@ public sealed class NullableSnowflakeJsonConverter : JsonConverter<ulong?>
 {
     public override ulong? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        if (reader.TokenType is JsonTokenType.Null)
-        {
-            return null;
-        }
+        if (reader.TokenType is JsonTokenType.Null) return null;
 
         return reader.TokenType switch
         {

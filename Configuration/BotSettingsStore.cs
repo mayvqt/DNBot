@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace DNBot.Configuration;
@@ -12,8 +11,9 @@ public sealed class BotSettingsStore
         "ready to expand"
     ];
 
-    private readonly object _gate = new();
     private readonly string _filePath;
+
+    private readonly object _gate = new();
     private BotRuntimeSettings _settings;
 
     public BotSettingsStore(IHostEnvironment environment, IOptions<DiscordBotOptions> options)
@@ -33,7 +33,8 @@ public sealed class BotSettingsStore
         }
     }
 
-    public BotRuntimeSettings Update(string? token, string prefix, ulong? developmentGuildId, IReadOnlyList<string> statusMessages)
+    public BotRuntimeSettings Update(string? token, string prefix, ulong? developmentGuildId,
+        IReadOnlyList<string> statusMessages)
     {
         var settings = Current;
         var cleaned = settings with
@@ -61,7 +62,7 @@ public sealed class BotSettingsStore
         lock (_gate)
         {
             return _settings.AutoRoles.FirstOrDefault(settings => settings.GuildId == guildId)
-                ?? new AutoRoleSettings(guildId, Enabled: false, IgnoreBots: true, RoleIds: []);
+                   ?? new AutoRoleSettings(guildId, false, true, []);
         }
     }
 
@@ -95,7 +96,7 @@ public sealed class BotSettingsStore
         lock (_gate)
         {
             return _settings.GuildSettings.FirstOrDefault(settings => settings.GuildId == guildId)
-                ?? CreateDefaultGuildSettings(guildId);
+                   ?? CreateDefaultGuildSettings(guildId);
         }
     }
 
@@ -129,13 +130,10 @@ public sealed class BotSettingsStore
     {
         lock (_gate)
         {
-            if (guildId is not { } id)
-            {
-                return _settings.Prefix;
-            }
+            if (guildId is not { } id) return _settings.Prefix;
 
             return _settings.GuildSettings.FirstOrDefault(settings => settings.GuildId == id)?.PrefixOverride
-                ?? _settings.Prefix;
+                   ?? _settings.Prefix;
         }
     }
 
@@ -147,19 +145,17 @@ public sealed class BotSettingsStore
         {
             var loaded = JsonFileStore.Read<BotRuntimeSettings>(_filePath);
             if (loaded is not null)
-            {
                 return loaded with
                 {
                     StatusMessages = loaded.StatusMessages ?? [],
                     AutoRoles = loaded.AutoRoles ?? [],
                     GuildSettings = (loaded.GuildSettings ?? [])
-                        .Select(settings => settings with
-                        {
-                            Welcome = CleanWelcome(settings.Welcome)
-                        })
-                        .ToArray()
+                    .Select(settings => settings with
+                    {
+                        Welcome = CleanWelcome(settings.Welcome)
+                    })
+                    .ToArray()
                 };
-            }
         }
 
         var settings = new BotRuntimeSettings(
@@ -182,19 +178,16 @@ public sealed class BotSettingsStore
     {
         return new GuildRuntimeSettings(
             guildId,
-            PrefixOverride: null,
+            null,
             new WelcomeSettings(
-                Enabled: false,
-                ChannelId: null,
-                Message: "Welcome {user} to {server}!"));
+                false,
+                null,
+                "Welcome {user} to {server}!"));
     }
 
     private static WelcomeSettings CleanWelcome(WelcomeSettings? welcome)
     {
-        if (welcome is null)
-        {
-            return new WelcomeSettings(false, null, "Welcome {user} to {server}!");
-        }
+        if (welcome is null) return new WelcomeSettings(false, null, "Welcome {user} to {server}!");
 
         var message = string.IsNullOrWhiteSpace(welcome.Message)
             ? "Welcome {user} to {server}!"

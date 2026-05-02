@@ -1,7 +1,5 @@
 using Discord;
 using Discord.WebSocket;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 namespace DNBot.Features.Reminders;
 
@@ -16,10 +14,7 @@ public sealed class ReminderDeliveryService(
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                foreach (var reminder in store.TakeDue(DateTimeOffset.UtcNow))
-                {
-                    await SendReminderAsync(reminder);
-                }
+                foreach (var reminder in store.TakeDue(DateTimeOffset.UtcNow)) await SendReminderAsync(reminder);
 
                 await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken);
             }

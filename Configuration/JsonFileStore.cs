@@ -17,10 +17,7 @@ public static class JsonFileStore
 
     public static T? Read<T>(string path)
     {
-        if (!File.Exists(path))
-        {
-            return default;
-        }
+        if (!File.Exists(path)) return default;
 
         try
         {
@@ -42,7 +39,7 @@ public static class JsonFileStore
 
         if (File.Exists(path))
         {
-            File.Replace(tempPath, path, destinationBackupFileName: null);
+            File.Replace(tempPath, path, null);
             return;
         }
 

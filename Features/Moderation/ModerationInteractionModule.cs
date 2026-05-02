@@ -22,14 +22,14 @@ public sealed class ModerationInteractionModule : InteractionModuleBase<SocketIn
     [RequireBotPermission(GuildPermission.BanMembers)]
     public async Task BanAsync(SocketGuildUser user, string reason = "No reason provided.")
     {
-        await user.BanAsync(pruneDays: 0, reason);
+        await user.BanAsync(0, reason);
         await RespondAsync($"Banned {user.Mention}. Reason: {reason}");
     }
 
     [SlashCommand("purge", "Bulk-delete recent messages from this channel.")]
     [RequireUserPermission(GuildPermission.ManageMessages)]
     [RequireBotPermission(GuildPermission.ManageMessages)]
-    public async Task PurgeAsync([MinValue(1), MaxValue(100)] int count)
+    public async Task PurgeAsync([MinValue(1)] [MaxValue(100)] int count)
     {
         if (Context.Channel is not ITextChannel textChannel)
         {
@@ -37,7 +37,7 @@ public sealed class ModerationInteractionModule : InteractionModuleBase<SocketIn
             return;
         }
 
-        await DeferAsync(ephemeral: true);
+        await DeferAsync(true);
 
         var messages = await textChannel.GetMessagesAsync(count).FlattenAsync();
         var recentMessages = messages
@@ -51,7 +51,7 @@ public sealed class ModerationInteractionModule : InteractionModuleBase<SocketIn
     [SlashCommand("slowmode", "Set channel slowmode in seconds.")]
     [RequireUserPermission(GuildPermission.ManageChannels)]
     [RequireBotPermission(GuildPermission.ManageChannels)]
-    public async Task SlowmodeAsync([MinValue(0), MaxValue(21600)] int seconds)
+    public async Task SlowmodeAsync([MinValue(0)] [MaxValue(21600)] int seconds)
     {
         if (Context.Channel is not SocketTextChannel channel)
         {

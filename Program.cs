@@ -8,19 +8,15 @@ using DNBot.Features.Levels;
 using DNBot.Features.Reminders;
 using DNBot.Features.Tags;
 using DNBot.Services;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RunMode = Discord.Interactions.RunMode;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration
-    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
-    .AddEnvironmentVariables(prefix: "DNBOT_");
+    .AddJsonFile("appsettings.json", true, true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true, true)
+    .AddEnvironmentVariables("DNBOT_");
 
 builder.Logging.ClearProviders();
 builder.Logging.AddSimpleConsole(options =>
@@ -48,10 +44,10 @@ builder.Services.AddSingleton(sp =>
     return new DiscordSocketClient(new DiscordSocketConfig
     {
         GatewayIntents = GatewayIntents.Guilds
-            | GatewayIntents.GuildMembers
-            | GatewayIntents.GuildMessages
-            | GatewayIntents.DirectMessages
-            | GatewayIntents.MessageContent,
+                         | GatewayIntents.GuildMembers
+                         | GatewayIntents.GuildMessages
+                         | GatewayIntents.DirectMessages
+                         | GatewayIntents.MessageContent,
         AlwaysDownloadUsers = false,
         LogGatewayIntentWarnings = true,
         LogLevel = options.DiscordNetLogLevel
@@ -65,7 +61,7 @@ builder.Services.AddSingleton(sp =>
 
     return new InteractionService(client.Rest, new InteractionServiceConfig
     {
-        DefaultRunMode = Discord.Interactions.RunMode.Async,
+        DefaultRunMode = RunMode.Async,
         LogLevel = options.DiscordNetLogLevel,
         UseCompiledLambda = true
     });

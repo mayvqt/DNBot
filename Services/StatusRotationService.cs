@@ -1,8 +1,6 @@
 using Discord;
 using Discord.WebSocket;
 using DNBot.Configuration;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 namespace DNBot.Services;
 
@@ -42,8 +40,6 @@ public sealed class StatusRotationService(
     private async Task WaitUntilReadyAsync(CancellationToken stoppingToken)
     {
         while (client.ConnectionState != ConnectionState.Connected && !stoppingToken.IsCancellationRequested)
-        {
             await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
-        }
     }
 }

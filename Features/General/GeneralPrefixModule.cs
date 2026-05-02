@@ -1,3 +1,4 @@
+using Discord;
 using Discord.Commands;
 
 namespace DNBot.Features.General;
@@ -13,7 +14,7 @@ public sealed class GeneralPrefixModule : ModuleBase<SocketCommandContext>
 
     [Command("say")]
     [Summary("Repeat a message. Example: !say hello")]
-    [RequireUserPermission(Discord.GuildPermission.ManageMessages)]
+    [RequireUserPermission(GuildPermission.ManageMessages)]
     public async Task SayAsync([Remainder] string text)
     {
         await Context.Message.DeleteAsync();

@@ -1,6 +1,7 @@
 # DNBot
 
-A .NET 10 Discord bot template built on Discord.Net, ASP.NET Core, dependency injection, typed configuration, slash commands, prefix commands, background services, and a local setup dashboard.
+A .NET 10 Discord bot template built on Discord.Net, ASP.NET Core, dependency injection, typed configuration, slash
+commands, prefix commands, background services, and a local setup dashboard.
 
 ## Included Features
 
@@ -38,11 +39,16 @@ Open:
 http://localhost:5080/dashboard
 ```
 
-Save your token, prefix, development guild, status rotation, and autorole settings there. The dashboard writes to `data/settings.json`, which is the bot's main runtime config. Restart after saving a new token or changing the development guild used for slash command registration.
+Save your token, prefix, development guild, status rotation, and autorole settings there. The dashboard writes to
+`data/settings.json`, which is the bot's main runtime config. Restart after saving a new token or changing the
+development guild used for slash command registration.
 
-The server selector in the dashboard scopes server-specific pages. Selecting a server loads that server's prefix override, welcome message settings, autorole rules, assignable roles, level leaderboard, and tags. Global settings stay under Setup.
+The server selector in the dashboard scopes server-specific pages. Selecting a server loads that server's prefix
+override, welcome message settings, autorole rules, assignable roles, level leaderboard, and tags. Global settings stay
+under Setup.
 
-You can still manually edit environment variables for automation or deployment. Env/appsettings values seed `data/settings.json` only when that file does not exist yet:
+You can still manually edit environment variables for automation or deployment. Env/appsettings values seed
+`data/settings.json` only when that file does not exist yet:
 
 ```bash
 export DNBOT_Discord__Token="your_bot_token"
@@ -57,7 +63,8 @@ export Dashboard__Url="http://localhost:5080"
 DOTNET_CLI_HOME=.dotnet dotnet run
 ```
 
-The project targets `net10.0`. `DOTNET_CLI_HOME=.dotnet` keeps local CLI first-run files inside the repo, which is handy in sandboxed environments.
+The project targets `net10.0`. `DOTNET_CLI_HOME=.dotnet` keeps local CLI first-run files inside the repo, which is handy
+in sandboxed environments.
 
 ## Data Storage
 
@@ -71,14 +78,17 @@ Template data is stored as JSON under `data/`:
 
 The `data/` folder is ignored by git so tokens, server data, and local state do not get committed by accident.
 
-Config precedence is intentionally simple: once `data/settings.json` exists, the dashboard owns bot settings. Delete that file if you want env/appsettings values to seed a fresh local config again.
+Config precedence is intentionally simple: once `data/settings.json` exists, the dashboard owns bot settings. Delete
+that file if you want env/appsettings values to seed a fresh local config again.
 
-If a JSON data file is malformed, the bot preserves it with a `.corrupt-*` suffix and recreates clean defaults where possible.
+If a JSON data file is malformed, the bot preserves it with a `.corrupt-*` suffix and recreates clean defaults where
+possible.
 
 ## Expand It
 
 - Add new slash command modules under `Features/<FeatureName>`.
 - Add prefix command modules by inheriting `ModuleBase<SocketCommandContext>`.
 - Add services with `builder.Services.AddSingleton`, `AddScoped`, or `AddHostedService` in `Program.cs`.
-- Replace the JSON stores (`TagStore`, `LevelStore`, `BotSettingsStore`) with database-backed stores when the bot outgrows single-node file storage.
+- Replace the JSON stores (`TagStore`, `LevelStore`, `BotSettingsStore`) with database-backed stores when the bot
+  outgrows single-node file storage.
 - Replace `ReminderStore` with a persisted store when reminders need to survive restarts.

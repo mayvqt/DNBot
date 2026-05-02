@@ -17,9 +17,9 @@ public sealed class LevelsInteractionModule(LevelStore levels) : InteractionModu
         var embed = new EmbedBuilder()
             .WithTitle($"{user.DisplayName}'s rank")
             .WithThumbnailUrl(user.GetDisplayAvatarUrl())
-            .AddField("Level", profile.Level, inline: true)
-            .AddField("XP", profile.Xp, inline: true)
-            .AddField("Next Level", profile.XpForNextLevel, inline: true)
+            .AddField("Level", profile.Level, true)
+            .AddField("XP", profile.Xp, true)
+            .AddField("Next Level", profile.XpForNextLevel, true)
             .WithColor(Color.Gold)
             .Build();
 

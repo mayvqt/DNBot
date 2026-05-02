@@ -1,14 +1,13 @@
 using System.Collections.Concurrent;
 using DNBot.Configuration;
-using Microsoft.Extensions.Hosting;
 
 namespace DNBot.Features.Tags;
 
 public sealed class TagStore
 {
-    private readonly ConcurrentDictionary<(ulong GuildId, string Name), Tag> _tags = [];
-    private readonly object _saveGate = new();
     private readonly string _filePath;
+    private readonly object _saveGate = new();
+    private readonly ConcurrentDictionary<(ulong GuildId, string Name), Tag> _tags = [];
 
     public TagStore(IHostEnvironment environment)
     {
@@ -19,10 +18,7 @@ public sealed class TagStore
     public bool TryAdd(Tag tag)
     {
         var added = _tags.TryAdd((tag.GuildId, Normalize(tag.Name)), tag with { Name = Normalize(tag.Name) });
-        if (added)
-        {
-            Save();
-        }
+        if (added) Save();
 
         return added;
     }
@@ -35,10 +31,7 @@ public sealed class TagStore
     public bool TryRemove(ulong guildId, string name, out Tag? tag)
     {
         var removed = _tags.TryRemove((guildId, Normalize(name)), out tag);
-        if (removed)
-        {
-            Save();
-        }
+        if (removed) Save();
 
         return removed;
     }
@@ -59,16 +52,10 @@ public sealed class TagStore
     private void Load()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
-        if (!File.Exists(_filePath))
-        {
-            return;
-        }
+        if (!File.Exists(_filePath)) return;
 
         var tags = JsonFileStore.Read<IReadOnlyList<Tag>>(_filePath) ?? [];
-        foreach (var tag in tags)
-        {
-            _tags[(tag.GuildId, Normalize(tag.Name))] = tag;
-        }
+        foreach (var tag in tags) _tags[(tag.GuildId, Normalize(tag.Name))] = tag;
     }
 
     private void Save()

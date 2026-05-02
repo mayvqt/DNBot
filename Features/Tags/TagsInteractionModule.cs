@@ -63,7 +63,7 @@ public sealed class TagsInteractionModule(TagStore tags) : InteractionModuleBase
         }
 
         var canManageMessages = Context.User is IGuildUser guildUser
-            && guildUser.GuildPermissions.ManageMessages;
+                                && guildUser.GuildPermissions.ManageMessages;
 
         if (tag.OwnerId != Context.User.Id && !canManageMessages)
         {

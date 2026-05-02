@@ -1,7 +1,5 @@
 using Discord.WebSocket;
 using DNBot.Configuration;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 namespace DNBot.Services;
 
@@ -25,10 +23,7 @@ public sealed class AutoRoleService(
     private async Task AssignRolesAsync(SocketGuildUser user)
     {
         var autoRole = settings.GetAutoRole(user.Guild.Id);
-        if (!autoRole.Enabled || autoRole.RoleIds.Count == 0 || autoRole.IgnoreBots && user.IsBot)
-        {
-            return;
-        }
+        if (!autoRole.Enabled || autoRole.RoleIds.Count == 0 || (autoRole.IgnoreBots && user.IsBot)) return;
 
         var roles = autoRole.RoleIds
             .Select(user.Guild.GetRole)
